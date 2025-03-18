@@ -12,7 +12,7 @@
     <h1>Kaphisma Lookup</h1>
     <div>
         <label for="date">Date (MM/DD/YYYY):</label>
-        <input type="text" id="date" placeholder="12/25/2024">
+        <input type="text" id="date" placeholder="MM/DD/YYYY">
     </div>
     <div>
         <label for="person">Your Number (1-20):</label>
@@ -34,6 +34,10 @@
 
         const startDate = new Date("12/18/2024");
         const inputDate = new Date(dateInput);
+
+        // Account for time zone differences: set hours to midnight
+        startDate.setHours(0, 0, 0, 0);
+        inputDate.setHours(0, 0, 0, 0);
 
         const days = Math.floor((inputDate - startDate) / (1000 * 60 * 60 * 24));
 
