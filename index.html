@@ -1,92 +1,63 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Kaphisma Lookup (with test harness)</title>
+  <title>Kaphisma Lookup</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
-    body { font-family: sans-serif; max-width:800px; margin:40px auto; padding:0 16px; }
-    h1 { text-align:center; }
-    label { display:inline-block; width:160px; text-align:right; margin-right:8px; }
-    input[type="text"], input[type="number"] { padding:6px 8px; font-size:14px; width:180px; }
-    button { padding:8px 12px; margin:8px; font-size:14px; }
-    #result { margin-top:16px; font-size:18px; font-weight:600; }
-    .controls { margin:12px 0 20px; }
-    table { width:100%; border-collapse:collapse; margin-top:12px; }
-    th, td { border:1px solid #ddd; padding:8px; text-align:center; }
-    th { background:#f5f5f5; }
-    .pass { background:#e6ffed; }
-    .fail { background:#fff0f0; }
-    .small { font-size:13px; color:#555; }
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; max-width:480px; margin:40px auto; padding:16px; }
+    h1 { text-align:center; margin-bottom:18px; }
+    form { display:flex; flex-direction:column; gap:12px; }
+    label { font-size:14px; display:block; }
+    input[type="text"], input[type="number"] {
+      padding:10px 8px;
+      font-size:16px;
+      border:1px solid #ccc;
+      border-radius:6px;
+      width:100%;
+      box-sizing:border-box;
+    }
+    button {
+      padding:10px 14px;
+      font-size:16px;
+      background:#2ea44f;
+      color:white;
+      border:none;
+      border-radius:6px;
+      cursor:pointer;
+    }
+    button:disabled { opacity:0.6; cursor:default; }
+    #result { margin-top:14px; font-size:18px; font-weight:600; text-align:center; }
+    .small { font-size:13px; color:#666; text-align:center; margin-top:8px; }
   </style>
 </head>
 <body>
   <h1>Kaphisma Lookup</h1>
 
-  <div class="controls">
+  <form id="kaphismaForm" onsubmit="return false;">
     <div>
-      <label for="startDate">Start Date (MM/DD/YYYY):</label>
-      <input type="text" id="startDate" value="11/28/2025" placeholder="MM/DD/YYYY">
+      <label for="date">Date (MM/DD/YYYY):</label>
+      <input id="date" name="date" type="text" placeholder="MM/DD/YYYY" aria-label="Date in MM slash DD slash YYYY" />
     </div>
+
     <div>
-      <label for="offset">Offset (can be negative):</label>
-      <input type="number" id="offset" value="5" step="1">
-      <span class="small">Use 0 for natural mapping (date=start => result=person)</span>
+      <label for="person">Your Number (1-20):</label>
+      <input id="person" name="person" type="number" min="1" max="20" placeholder="1" />
     </div>
-  </div>
 
-  <div>
-    <label for="date">Date (MM/DD/YYYY):</label>
-    <input type="text" id="date" placeholder="MM/DD/YYYY" value="11/28/2025">
-  </div>
-  <div>
-    <label for="person">Your Number (1-20):</label>
-    <input type="number" id="person" min="1" max="20" value="5">
-  </div>
+    <div>
+      <button id="calcBtn" type="button">Get My Kaphisma</button>
+    </div>
+  </form>
 
-  <div>
-    <button id="calcBtn">Get My Kaphisma</button>
-    <button id="runTestsBtn">Run Tests</button>
-  </div>
-
-  <div id="result"></div>
-
-  <h2>Test Harness</h2>
-  <p class="small">Predefined tests below; you can add more using the inputs at the bottom of the table.</p>
-  <table id="testsTable" aria-live="polite">
-    <thead>
-      <tr>
-        <th>#</th>
-        <th>Input Date</th>
-        <th>Person</th>
-        <th>Expected</th>
-        <th>Actual</th>
-        <th>Days from Start</th>
-        <th>Result</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-
-  <h3>Add a test</h3>
-  <div>
-    <label for="testDate">Date (MM/DD/YYYY):</label>
-    <input type="text" id="testDate" placeholder="MM/DD/YYYY" value="11/28/2025">
-  </div>
-  <div>
-    <label for="testPerson">Person (1-20):</label>
-    <input type="number" id="testPerson" min="1" max="20" value="5">
-  </div>
-  <div>
-    <label for="testExpected">Expected Kaphisma:</label>
-    <input type="number" id="testExpected" min="1" max="20" value="10">
-  </div>
-  <div>
-    <button id="addTestBtn">Add Test</button>
-    <button id="clearTestsBtn">Clear Tests</button>
-  </div>
+  <div id="result" aria-live="polite">Your Kaphisma: —</div>
+  <div class="small">If you get an error, check the date format (MM/DD/YYYY) and that the number is 1–20.</div>
 
   <script>
-    // Utilities
+    // Configuration: visible UI is minimal — internal defaults below.
+    const DEFAULT_START_DATE = "11/28/2025"; // start date used for calculations
+    const DEFAULT_OFFSET = 5;                // offset used for mapping
+
     function parseMMDDYYYY(str) {
       if (typeof str !== 'string') return null;
       const parts = str.trim().split('/');
@@ -94,12 +65,11 @@
       const m = parseInt(parts[0], 10);
       const d = parseInt(parts[1], 10);
       const y = parseInt(parts[2], 10);
-      if ([m,d,y].some(v => isNaN(v))) return null;
+      if ([m,d,y].some(v => Number.isNaN(v))) return null;
       return { year: y, month: m, day: d };
     }
 
-    // Core calculation function.
-    // returns { kaphisma, days } or null on invalid input.
+    // computeKaphisma uses UTC midnight arithmetic; returns { kaphisma, days } or null on invalid input
     function computeKaphisma(startStr, dateStr, person, offset) {
       const s = parseMMDDYYYY(startStr);
       const t = parseMMDDYYYY(dateStr);
@@ -107,111 +77,47 @@
       if (!Number.isInteger(person) || person < 1 || person > 20) return null;
       offset = Number.isFinite(offset) ? parseInt(offset, 10) : 0;
 
-      // Use UTC midnight arithmetic to avoid timezone/DST quirks and to include leap days.
       const startUTC = Date.UTC(s.year, s.month - 1, s.day);
       const inputUTC = Date.UTC(t.year, t.month - 1, t.day);
-      if (isNaN(startUTC) || isNaN(inputUTC)) return null;
+      if (Number.isNaN(startUTC) || Number.isNaN(inputUTC)) return null;
 
       const msPerDay = 24 * 60 * 60 * 1000;
       const days = Math.floor((inputUTC - startUTC) / msPerDay);
 
-      // Correct off-by-one and apply offset. Safe modulo for negatives.
+      // Apply offset and map into 1..20 (safe for negative days)
       const raw = days + person + offset - 1;
       const mod = ((raw % 20) + 20) % 20;
       const kaphisma = mod + 1;
       return { kaphisma, days };
     }
 
-    // UI functions
-    const resultDiv = document.getElementById('result');
+    // UI wiring
+    const dateInput = document.getElementById('date');
+    const personInput = document.getElementById('person');
     const calcBtn = document.getElementById('calcBtn');
-    const runTestsBtn = document.getElementById('runTestsBtn');
-    const testsTbody = document.querySelector('#testsTable tbody');
+    const resultDiv = document.getElementById('result');
 
-    // Predefined tests (you can add / clear interactively)
-    let tests = [
-      { date: '11/28/2025', person: 5, expected: 10 }, // user-specified case
-      { date: '11/28/2025', person: 6, expected: 11 }  // user-specified case
-    ];
-
-    function renderTestsTable(startStr, offset) {
-      testsTbody.innerHTML = '';
-      tests.forEach((t, idx) => {
-        const res = computeKaphisma(startStr, t.date, t.person, offset);
-        const actual = res ? res.kaphisma : 'ERR';
-        const days = res ? res.days : '';
-        const pass = actual === t.expected;
-        const tr = document.createElement('tr');
-        if (pass) tr.classList.add('pass'); else tr.classList.add('fail');
-        tr.innerHTML = `
-          <td>${idx + 1}</td>
-          <td>${t.date}</td>
-          <td>${t.person}</td>
-          <td>${t.expected}</td>
-          <td>${actual}</td>
-          <td>${days}</td>
-          <td>${pass ? 'PASS' : 'FAIL'}</td>
-        `;
-        testsTbody.appendChild(tr);
-      });
-    }
-
-    function showResult(text, isError = false) {
-      resultDiv.textContent = text;
-      resultDiv.style.color = isError ? 'crimson' : 'black';
-    }
-
-    // Wire up buttons
     calcBtn.addEventListener('click', () => {
-      const startStr = document.getElementById('startDate').value;
-      const dateStr = document.getElementById('date').value;
-      const person = parseInt(document.getElementById('person').value, 10);
-      const offset = parseInt(document.getElementById('offset').value, 10);
-
-      const r = computeKaphisma(startStr, dateStr, person, offset);
-      if (!r) {
-        showResult('Invalid input. Check dates (MM/DD/YYYY) and person (1-20).', true);
+      const dateStr = (dateInput.value || "").trim() || DEFAULT_START_DATE;
+      const person = parseInt(personInput.value, 10);
+      const res = computeKaphisma(DEFAULT_START_DATE, dateStr, person, DEFAULT_OFFSET);
+      if (!res) {
+        resultDiv.textContent = "Please enter a valid date (MM/DD/YYYY) and a number between 1 and 20.";
+        resultDiv.style.color = 'crimson';
         return;
       }
-      showResult(`Your Kaphisma: ${r.kaphisma} (days from start: ${r.days})`);
+      resultDiv.style.color = 'black';
+      resultDiv.textContent = `Your Kaphisma: ${res.kaphisma}`;
     });
 
-    runTestsBtn.addEventListener('click', () => {
-      const startStr = document.getElementById('startDate').value;
-      const offset = parseInt(document.getElementById('offset').value, 10);
-      renderTestsTable(startStr, offset);
-      showResult('Tests executed — see table below.');
+    // Improve UX: press Enter in person field to calculate
+    personInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') calcBtn.click();
     });
 
-    // Add & clear tests
-    document.getElementById('addTestBtn').addEventListener('click', () => {
-      const date = document.getElementById('testDate').value.trim();
-      const person = parseInt(document.getElementById('testPerson').value, 10);
-      const expected = parseInt(document.getElementById('testExpected').value, 10);
-      if (!parseMMDDYYYY(date) || !Number.isInteger(person) || person < 1 || person > 20 ||
-          !Number.isInteger(expected) || expected < 1 || expected > 20) {
-        alert('Please enter a valid test (date MM/DD/YYYY, person 1-20, expected 1-20).');
-        return;
-      }
-      tests.push({ date, person, expected });
-      const startStr = document.getElementById('startDate').value;
-      const offset = parseInt(document.getElementById('offset').value, 10);
-      renderTestsTable(startStr, offset);
-    });
-
-    document.getElementById('clearTestsBtn').addEventListener('click', () => {
-      tests = [];
-      testsTbody.innerHTML = '';
-      showResult('Tests cleared.');
-    });
-
-    // Initial render
-    (function init() {
-      const startStr = document.getElementById('startDate').value;
-      const offset = parseInt(document.getElementById('offset').value, 10);
-      renderTestsTable(startStr, offset);
-      showResult('Ready. Use the controls to compute or run tests.');
-    })();
+    // Prefill date & person with sensible defaults for convenience
+    dateInput.value = DEFAULT_START_DATE;
+    personInput.value = 5;
   </script>
 </body>
 </html>
