@@ -54,9 +54,8 @@
   <div class="small">If you get an error, check the date format (MM/DD/YYYY) and that the number is 1–20.</div>
 
   <script>
-    // Configuration: visible UI is minimal — internal defaults below.
-    const DEFAULT_START_DATE = "11/28/2025"; // start date used for calculations
-    const DEFAULT_OFFSET = 5;                // offset used for mapping
+    const DEFAULT_START_DATE = "11/28/2025";
+    const DEFAULT_OFFSET = 5;
 
     function parseMMDDYYYY(str) {
       if (typeof str !== 'string') return null;
@@ -69,7 +68,6 @@
       return { year: y, month: m, day: d };
     }
 
-    // computeKaphisma uses UTC midnight arithmetic; returns { kaphisma, days } or null on invalid input
     function computeKaphisma(startStr, dateStr, person, offset) {
       const s = parseMMDDYYYY(startStr);
       const t = parseMMDDYYYY(dateStr);
@@ -84,14 +82,12 @@
       const msPerDay = 24 * 60 * 60 * 1000;
       const days = Math.floor((inputUTC - startUTC) / msPerDay);
 
-      // Apply offset and map into 1..20 (safe for negative days)
       const raw = days + person + offset - 1;
       const mod = ((raw % 20) + 20) % 20;
       const kaphisma = mod + 1;
       return { kaphisma, days };
     }
 
-    // UI wiring
     const dateInput = document.getElementById('date');
     const personInput = document.getElementById('person');
     const calcBtn = document.getElementById('calcBtn');
@@ -110,12 +106,10 @@
       resultDiv.textContent = `Your Kaphisma: ${res.kaphisma}`;
     });
 
-    // Improve UX: press Enter in person field to calculate
     personInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') calcBtn.click();
     });
 
-    // Prefill date & person with sensible defaults for convenience
     dateInput.value = DEFAULT_START_DATE;
     personInput.value = 5;
   </script>
