@@ -1,54 +1,217 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Kaphisma Lookup</title>
-    <style>
-        body { font-family: sans-serif; text-align: center; padding-top: 50px; }
-        input, button { margin: 10px; padding: 8px; font-size: 16px; }
-        #result { margin-top: 20px; font-size: 20px; font-weight: bold; }
-    </style>
+  <meta charset="utf-8" />
+  <title>Kaphisma Lookup (with test harness)</title>
+  <style>
+    body { font-family: sans-serif; max-width:800px; margin:40px auto; padding:0 16px; }
+    h1 { text-align:center; }
+    label { display:inline-block; width:160px; text-align:right; margin-right:8px; }
+    input[type="text"], input[type="number"] { padding:6px 8px; font-size:14px; width:180px; }
+    button { padding:8px 12px; margin:8px; font-size:14px; }
+    #result { margin-top:16px; font-size:18px; font-weight:600; }
+    .controls { margin:12px 0 20px; }
+    table { width:100%; border-collapse:collapse; margin-top:12px; }
+    th, td { border:1px solid #ddd; padding:8px; text-align:center; }
+    th { background:#f5f5f5; }
+    .pass { background:#e6ffed; }
+    .fail { background:#fff0f0; }
+    .small { font-size:13px; color:#555; }
+  </style>
 </head>
 <body>
-    <h1>Kaphisma Lookup</h1>
+  <h1>Kaphisma Lookup</h1>
+
+  <div class="controls">
     <div>
-        <label for="date">Date (MM/DD/YYYY):</label>
-        <input type="text" id="date" placeholder="MM/DD/YYYY">
+      <label for="startDate">Start Date (MM/DD/YYYY):</label>
+      <input type="text" id="startDate" value="11/28/2025" placeholder="MM/DD/YYYY">
     </div>
     <div>
-        <label for="person">Your Number (1-20):</label>
-        <input type="number" id="person" placeholder="1">
+      <label for="offset">Offset (can be negative):</label>
+      <input type="number" id="offset" value="5" step="1">
+      <span class="small">Use 0 for natural mapping (date=start => result=person)</span>
     </div>
-    <button onclick="calculateKaphisma()">Get My Kaphisma</button>
-    <div id="result"></div>
+  </div>
 
-    <script>
-      function calculateKaphisma() {
-        const dateInput = document.getElementById("date").value;
-        const personInput = parseInt(document.getElementById("person").value);
-        const resultDiv = document.getElementById("result");
+  <div>
+    <label for="date">Date (MM/DD/YYYY):</label>
+    <input type="text" id="date" placeholder="MM/DD/YYYY" value="11/28/2025">
+  </div>
+  <div>
+    <label for="person">Your Number (1-20):</label>
+    <input type="number" id="person" min="1" max="20" value="5">
+  </div>
 
-        if (!dateInput || isNaN(personInput) || personInput < 1 || personInput > 20) {
-            resultDiv.textContent = "Please enter a valid date (MM/DD/YYYY) and a person number (1-20)";
-            return;
-        }
+  <div>
+    <button id="calcBtn">Get My Kaphisma</button>
+    <button id="runTestsBtn">Run Tests</button>
+  </div>
 
-        const startDate = new Date("12/18/2024");
-        const inputDate = new Date(dateInput);
+  <div id="result"></div>
 
-        // Account for time zone differences: set hours to midnight
-        startDate.setHours(0, 0, 0, 0);
-        inputDate.setHours(0, 0, 0, 0);
+  <h2>Test Harness</h2>
+  <p class="small">Predefined tests below; you can add more using the inputs at the bottom of the table.</p>
+  <table id="testsTable" aria-live="polite">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Input Date</th>
+        <th>Person</th>
+        <th>Expected</th>
+        <th>Actual</th>
+        <th>Days from Start</th>
+        <th>Result</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
 
-        const days = Math.floor((inputDate - startDate) / (1000 * 60 * 60 * 24));
+  <h3>Add a test</h3>
+  <div>
+    <label for="testDate">Date (MM/DD/YYYY):</label>
+    <input type="text" id="testDate" placeholder="MM/DD/YYYY" value="11/28/2025">
+  </div>
+  <div>
+    <label for="testPerson">Person (1-20):</label>
+    <input type="number" id="testPerson" min="1" max="20" value="5">
+  </div>
+  <div>
+    <label for="testExpected">Expected Kaphisma:</label>
+    <input type="number" id="testExpected" min="1" max="20" value="10">
+  </div>
+  <div>
+    <button id="addTestBtn">Add Test</button>
+    <button id="clearTestsBtn">Clear Tests</button>
+  </div>
 
-       if (isNaN(days)) {
-           resultDiv.textContent = "Please enter a valid date (MM/DD/YYYY)";
-           return;
-          }
-
-        const kaphisma = ((days + personInput) % 20) + 1;
-        resultDiv.textContent = kaphisma;
+  <script>
+    // Utilities
+    function parseMMDDYYYY(str) {
+      if (typeof str !== 'string') return null;
+      const parts = str.trim().split('/');
+      if (parts.length !== 3) return null;
+      const m = parseInt(parts[0], 10);
+      const d = parseInt(parts[1], 10);
+      const y = parseInt(parts[2], 10);
+      if ([m,d,y].some(v => isNaN(v))) return null;
+      return { year: y, month: m, day: d };
     }
-    </script>
+
+    // Core calculation function.
+    // returns { kaphisma, days } or null on invalid input.
+    function computeKaphisma(startStr, dateStr, person, offset) {
+      const s = parseMMDDYYYY(startStr);
+      const t = parseMMDDYYYY(dateStr);
+      if (!s || !t) return null;
+      if (!Number.isInteger(person) || person < 1 || person > 20) return null;
+      offset = Number.isFinite(offset) ? parseInt(offset, 10) : 0;
+
+      // Use UTC midnight arithmetic to avoid timezone/DST quirks and to include leap days.
+      const startUTC = Date.UTC(s.year, s.month - 1, s.day);
+      const inputUTC = Date.UTC(t.year, t.month - 1, t.day);
+      if (isNaN(startUTC) || isNaN(inputUTC)) return null;
+
+      const msPerDay = 24 * 60 * 60 * 1000;
+      const days = Math.floor((inputUTC - startUTC) / msPerDay);
+
+      // Correct off-by-one and apply offset. Safe modulo for negatives.
+      const raw = days + person + offset - 1;
+      const mod = ((raw % 20) + 20) % 20;
+      const kaphisma = mod + 1;
+      return { kaphisma, days };
+    }
+
+    // UI functions
+    const resultDiv = document.getElementById('result');
+    const calcBtn = document.getElementById('calcBtn');
+    const runTestsBtn = document.getElementById('runTestsBtn');
+    const testsTbody = document.querySelector('#testsTable tbody');
+
+    // Predefined tests (you can add / clear interactively)
+    let tests = [
+      { date: '11/28/2025', person: 5, expected: 10 }, // user-specified case
+      { date: '11/28/2025', person: 6, expected: 11 }  // user-specified case
+    ];
+
+    function renderTestsTable(startStr, offset) {
+      testsTbody.innerHTML = '';
+      tests.forEach((t, idx) => {
+        const res = computeKaphisma(startStr, t.date, t.person, offset);
+        const actual = res ? res.kaphisma : 'ERR';
+        const days = res ? res.days : '';
+        const pass = actual === t.expected;
+        const tr = document.createElement('tr');
+        if (pass) tr.classList.add('pass'); else tr.classList.add('fail');
+        tr.innerHTML = `
+          <td>${idx + 1}</td>
+          <td>${t.date}</td>
+          <td>${t.person}</td>
+          <td>${t.expected}</td>
+          <td>${actual}</td>
+          <td>${days}</td>
+          <td>${pass ? 'PASS' : 'FAIL'}</td>
+        `;
+        testsTbody.appendChild(tr);
+      });
+    }
+
+    function showResult(text, isError = false) {
+      resultDiv.textContent = text;
+      resultDiv.style.color = isError ? 'crimson' : 'black';
+    }
+
+    // Wire up buttons
+    calcBtn.addEventListener('click', () => {
+      const startStr = document.getElementById('startDate').value;
+      const dateStr = document.getElementById('date').value;
+      const person = parseInt(document.getElementById('person').value, 10);
+      const offset = parseInt(document.getElementById('offset').value, 10);
+
+      const r = computeKaphisma(startStr, dateStr, person, offset);
+      if (!r) {
+        showResult('Invalid input. Check dates (MM/DD/YYYY) and person (1-20).', true);
+        return;
+      }
+      showResult(`Your Kaphisma: ${r.kaphisma} (days from start: ${r.days})`);
+    });
+
+    runTestsBtn.addEventListener('click', () => {
+      const startStr = document.getElementById('startDate').value;
+      const offset = parseInt(document.getElementById('offset').value, 10);
+      renderTestsTable(startStr, offset);
+      showResult('Tests executed — see table below.');
+    });
+
+    // Add & clear tests
+    document.getElementById('addTestBtn').addEventListener('click', () => {
+      const date = document.getElementById('testDate').value.trim();
+      const person = parseInt(document.getElementById('testPerson').value, 10);
+      const expected = parseInt(document.getElementById('testExpected').value, 10);
+      if (!parseMMDDYYYY(date) || !Number.isInteger(person) || person < 1 || person > 20 ||
+          !Number.isInteger(expected) || expected < 1 || expected > 20) {
+        alert('Please enter a valid test (date MM/DD/YYYY, person 1-20, expected 1-20).');
+        return;
+      }
+      tests.push({ date, person, expected });
+      const startStr = document.getElementById('startDate').value;
+      const offset = parseInt(document.getElementById('offset').value, 10);
+      renderTestsTable(startStr, offset);
+    });
+
+    document.getElementById('clearTestsBtn').addEventListener('click', () => {
+      tests = [];
+      testsTbody.innerHTML = '';
+      showResult('Tests cleared.');
+    });
+
+    // Initial render
+    (function init() {
+      const startStr = document.getElementById('startDate').value;
+      const offset = parseInt(document.getElementById('offset').value, 10);
+      renderTestsTable(startStr, offset);
+      showResult('Ready. Use the controls to compute or run tests.');
+    })();
+  </script>
 </body>
 </html>
